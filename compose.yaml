@@ -1,0 +1,38 @@
+services:
+  app:
+    x-defang-llm: true
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      - DB_URL=postgres://postgres:${POSTGRES_PASSWORD}@database:5432/postgres
+      - DB_SSL=true # set this to false if deploying to defang playground, true otherwise
+      # Figure out what LLM to turn on for Playground deployment
+      - LLM_MODEL= # gemini-2.5-flash for GCP, anthropic.claude-3-5-sonnet-20241022-v2:0 for AWS
+      - GITHUB_TOKEN= # optional, remove this line if unused
+    restart: unless-stopped
+    ports:
+      - mode: ingress
+        target: 3000
+        published: 3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+    depends_on:
+      - database
+
+  database:
+    image: postgres:16
+    x-defang-postgres: true
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+    ports:
+      - mode: host
+        target: 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
